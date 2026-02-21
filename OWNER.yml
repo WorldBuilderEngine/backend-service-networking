@@ -1,0 +1,6 @@
+owner-domain: infrastructure
+owner-teams:
+  - networking
+products:
+  - backend-service-networking
+description: "Library mesh API registration contracts and service discovery helpers consumed by backend-gateway and service APIs."
