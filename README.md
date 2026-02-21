@@ -33,6 +33,9 @@ Library mesh registration contract for backend service API discovery.
   - `WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH` to a JSON file.
   - `WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON` as inline JSON.
 - If neither is set, callers can fallback to a single-service registry built from local upstream settings.
+- Runtime loading behavior in this crate:
+  - `ServiceMeshRegistry::from_environment()` checks `WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON` first, then `WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH`.
+  - `ServiceMeshRegistry::from_environment_or_single_service(...)` loads from env when configured, else builds the provided fallback single-service registry.
 
 ## GCP K8s Wiring
 - Store registry JSON in a ConfigMap and mount as file.

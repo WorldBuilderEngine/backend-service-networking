@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::fmt;
 use std::fs;
 use std::path::Path;
@@ -13,6 +14,11 @@ pub const API_DISCOVERY_SCHEMA_V1: &str = "worldbuilder.discovery.schema.v1";
 pub const API_DISCOVERY_PLAY_SESSION_GET_V1: &str = "worldbuilder.discovery.play-session.get.v1";
 pub const API_DISCOVERY_PLAY_SESSION_CREATE_V1: &str =
     "worldbuilder.discovery.play-session.create.v1";
+
+pub const ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH: &str =
+    "WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH";
+pub const ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON: &str =
+    "WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON";
 
 pub const MVP_ANON_2D_API_CONTRACTS: [&str; 6] = [
     API_DISCOVERY_CATALOG_V1,
@@ -135,6 +141,34 @@ impl ServiceMeshRegistry {
         Self::from_document(document)
     }
 
+    pub fn from_environment() -> Result<Option<Self>, MeshRegistryError> {
+        if let Ok(registry_json_source) = env::var(ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON) {
+            if !registry_json_source.trim().is_empty() {
+                return Ok(Some(Self::from_json_str(registry_json_source.as_str())?));
+            }
+        }
+
+        if let Ok(registry_path_source) = env::var(ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH) {
+            if !registry_path_source.trim().is_empty() {
+                return Ok(Some(Self::from_file_path(registry_path_source)?));
+            }
+        }
+
+        Ok(None)
+    }
+
+    pub fn from_environment_or_single_service(
+        version: impl Into<String>,
+        service_name: impl Into<String>,
+        base_url: impl Into<String>,
+        api_contracts: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Result<Self, MeshRegistryError> {
+        if let Some(registry) = Self::from_environment()? {
+            return Ok(registry);
+        }
+        Self::single_service(version, service_name, base_url, api_contracts)
+    }
+
     pub fn version(&self) -> &str {
         self.version.as_str()
     }
@@ -234,6 +268,27 @@ fn validate_registry_document(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn environment_lock() -> &'static Mutex<()> {
+        static ENVIRONMENT_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENVIRONMENT_LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    fn clear_registry_environment() {
+        unsafe {
+            env::remove_var(ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON);
+            env::remove_var(ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH);
+        }
+    }
+
+    fn set_env_var(key: &str, value: &str) {
+        unsafe {
+            env::set_var(key, value);
+        }
+    }
 
     #[test]
     fn resolves_contract_to_registered_service() {
@@ -309,6 +364,8 @@ mod tests {
 
     #[test]
     fn returns_error_for_unknown_contract() {
+        let _lock = environment_lock().lock().unwrap();
+        clear_registry_environment();
         let registry = ServiceMeshRegistry::single_service(
             "2026-02-21",
             "backend-data-center",
@@ -324,5 +381,89 @@ mod tests {
             error,
             MeshRegistryError::UnknownApiContract(API_DISCOVERY_DETAIL_V1.to_string())
         );
+    }
+
+    #[test]
+    fn loads_registry_from_environment_json() {
+        let _lock = environment_lock().lock().unwrap();
+        clear_registry_environment();
+        set_env_var(
+            ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON,
+            r#"{
+                "version": "2026-02-21",
+                "services": [
+                    {
+                        "service_name": "backend-data-center",
+                        "base_url": "http://127.0.0.1:8787",
+                        "api_contracts": ["worldbuilder.discovery.catalog.v1"]
+                    }
+                ]
+            }"#,
+        );
+
+        let registry = ServiceMeshRegistry::from_environment()
+            .unwrap()
+            .expect("expected registry");
+        let resolved_target = registry
+            .resolve_api_contract(API_DISCOVERY_CATALOG_V1)
+            .unwrap();
+        assert_eq!(resolved_target.service_name, "backend-data-center");
+    }
+
+    #[test]
+    fn loads_registry_from_environment_path_when_json_is_not_set() {
+        let _lock = environment_lock().lock().unwrap();
+        clear_registry_environment();
+        let unique_suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time before unix epoch")
+            .as_nanos();
+        let registry_path = env::temp_dir().join(format!(
+            "backend-service-networking-registry-{}.json",
+            unique_suffix
+        ));
+        let registry_json = r#"{
+            "version": "2026-02-21",
+            "services": [
+                {
+                    "service_name": "backend-data-center",
+                    "base_url": "http://127.0.0.1:8787",
+                    "api_contracts": ["worldbuilder.discovery.home.v1"]
+                }
+            ]
+        }"#;
+        fs::write(&registry_path, registry_json).expect("failed to write temp registry");
+        set_env_var(
+            ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH,
+            registry_path.to_string_lossy().as_ref(),
+        );
+
+        let registry = ServiceMeshRegistry::from_environment()
+            .unwrap()
+            .expect("expected registry");
+        let resolved_target = registry
+            .resolve_api_contract(API_DISCOVERY_HOME_V1)
+            .unwrap();
+        assert_eq!(resolved_target.service_name, "backend-data-center");
+
+        fs::remove_file(registry_path).ok();
+    }
+
+    #[test]
+    fn falls_back_to_single_service_when_environment_is_empty() {
+        let _lock = environment_lock().lock().unwrap();
+        clear_registry_environment();
+        let registry = ServiceMeshRegistry::from_environment_or_single_service(
+            "2026-02-21",
+            "backend-data-center",
+            "http://127.0.0.1:8787",
+            [API_DISCOVERY_SCHEMA_V1],
+        )
+        .unwrap();
+
+        let resolved_target = registry
+            .resolve_api_contract(API_DISCOVERY_SCHEMA_V1)
+            .unwrap();
+        assert_eq!(resolved_target.service_name, "backend-data-center");
     }
 }
