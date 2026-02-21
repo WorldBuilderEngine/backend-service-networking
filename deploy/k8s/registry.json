@@ -2,6 +2,13 @@
   "version": "2026-02-21",
   "services": [
     {
+      "service_name": "backend-discovery-home",
+      "base_url": "http://backend-discovery-home.discovery.svc.cluster.local:8790",
+      "api_contracts": [
+        "worldbuilder.discovery.home_feed.v1"
+      ]
+    },
+    {
       "service_name": "backend-data-center",
       "base_url": "http://backend-data-center.infrastructure.svc.cluster.local:8790",
       "api_contracts": [
