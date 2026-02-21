@@ -28,6 +28,25 @@
         "worldbuilder.auth.refresh.v1",
         "worldbuilder.auth.guest-upgrade.v1"
       ]
+    },
+    {
+      "service_name": "backend-accounts",
+      "base_url": "http://backend-accounts.infrastructure.svc.cluster.local:8787",
+      "api_contracts": [
+        "worldbuilder.accounts.internal-bootstrap.v1",
+        "worldbuilder.accounts.get-by-id.v1",
+        "worldbuilder.accounts.get-by-identity.v1",
+        "worldbuilder.accounts.update.v1"
+      ]
+    },
+    {
+      "service_name": "backend-identity",
+      "base_url": "http://backend-identity.infrastructure.svc.cluster.local:8786",
+      "api_contracts": [
+        "worldbuilder.identity.profile.upsert.v1",
+        "worldbuilder.identity.profile.get.v1",
+        "worldbuilder.identity.policy-evaluation.v1"
+      ]
     }
   ]
 }
