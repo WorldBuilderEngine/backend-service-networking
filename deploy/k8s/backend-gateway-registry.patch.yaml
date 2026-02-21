@@ -1,0 +1,16 @@
+spec:
+  template:
+    spec:
+      containers:
+        - name: backend-gateway
+          env:
+            - name: WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH
+              value: /etc/worldbuilder/mesh/registry.json
+          volumeMounts:
+            - name: mesh-registry
+              mountPath: /etc/worldbuilder/mesh
+              readOnly: true
+      volumes:
+        - name: mesh-registry
+          configMap:
+            name: backend-service-networking-registry

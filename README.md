@@ -36,10 +36,15 @@ Library mesh registration contract for backend service API discovery.
 - Runtime loading behavior in this crate:
   - `ServiceMeshRegistry::from_environment()` checks `WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON` first, then `WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH`.
   - `ServiceMeshRegistry::from_environment_or_single_service(...)` loads from env when configured, else builds the provided fallback single-service registry.
+  - `ServiceMeshRegistry::ensure_contracts_registered(...)` verifies required contracts are present before serving traffic.
 
 ## GCP K8s Wiring
 - Store registry JSON in a ConfigMap and mount as file.
 - Point gateway env var to that mounted file path.
+- Ready-to-apply examples in this repository:
+  - `deploy/k8s/registry.json`
+  - `deploy/k8s/backend-service-networking-registry.configmap.yaml`
+  - `deploy/k8s/backend-gateway-registry.patch.yaml`
 
 Example deployment environment:
 ```yaml

@@ -53,6 +53,7 @@ pub struct ResolvedServiceTarget {
 pub enum MeshRegistryError {
     InvalidDocument(String),
     UnknownApiContract(String),
+    MissingRequiredApiContracts(Vec<String>),
     Decode(String),
     Io(String),
 }
@@ -68,6 +69,13 @@ impl fmt::Display for MeshRegistryError {
                     formatter,
                     "service mesh api contract '{}' is not registered.",
                     api_contract
+                )
+            }
+            MeshRegistryError::MissingRequiredApiContracts(missing_api_contracts) => {
+                write!(
+                    formatter,
+                    "service mesh registry is missing required api contracts: {}.",
+                    missing_api_contracts.join(", ")
                 )
             }
             MeshRegistryError::Decode(message) => write!(
@@ -192,6 +200,37 @@ impl ServiceMeshRegistry {
             base_url: service.base_url.clone(),
             api_contract: normalized_api_contract.to_string(),
         })
+    }
+
+    pub fn ensure_contracts_registered(
+        &self,
+        required_api_contracts: impl IntoIterator<Item = impl AsRef<str>>,
+    ) -> Result<(), MeshRegistryError> {
+        let mut missing_api_contracts = Vec::<String>::new();
+        for required_api_contract in required_api_contracts {
+            let normalized_api_contract = required_api_contract.as_ref().trim();
+            if normalized_api_contract.is_empty() {
+                return Err(MeshRegistryError::InvalidDocument(
+                    "required api contract list contains an empty value".to_string(),
+                ));
+            }
+            if !self
+                .api_contract_to_service_index
+                .contains_key(normalized_api_contract)
+            {
+                missing_api_contracts.push(normalized_api_contract.to_string());
+            }
+        }
+
+        if missing_api_contracts.is_empty() {
+            return Ok(());
+        }
+
+        missing_api_contracts.sort();
+        missing_api_contracts.dedup();
+        Err(MeshRegistryError::MissingRequiredApiContracts(
+            missing_api_contracts,
+        ))
     }
 }
 
@@ -465,5 +504,45 @@ mod tests {
             .resolve_api_contract(API_DISCOVERY_SCHEMA_V1)
             .unwrap();
         assert_eq!(resolved_target.service_name, "backend-data-center");
+    }
+
+    #[test]
+    fn validates_required_contracts_for_mvp() {
+        let registry = ServiceMeshRegistry::single_service(
+            "2026-02-21",
+            "backend-data-center",
+            "http://127.0.0.1:8787",
+            MVP_ANON_2D_API_CONTRACTS,
+        )
+        .unwrap();
+
+        registry
+            .ensure_contracts_registered(MVP_ANON_2D_API_CONTRACTS)
+            .unwrap();
+    }
+
+    #[test]
+    fn returns_missing_required_contracts_when_registry_is_incomplete() {
+        let registry = ServiceMeshRegistry::single_service(
+            "2026-02-21",
+            "backend-data-center",
+            "http://127.0.0.1:8787",
+            [API_DISCOVERY_CATALOG_V1],
+        )
+        .unwrap();
+
+        let error = registry
+            .ensure_contracts_registered(MVP_ANON_2D_API_CONTRACTS)
+            .unwrap_err();
+        assert_eq!(
+            error,
+            MeshRegistryError::MissingRequiredApiContracts(vec![
+                API_DISCOVERY_DETAIL_V1.to_string(),
+                API_DISCOVERY_HOME_V1.to_string(),
+                API_DISCOVERY_PLAY_SESSION_CREATE_V1.to_string(),
+                API_DISCOVERY_PLAY_SESSION_GET_V1.to_string(),
+                API_DISCOVERY_SCHEMA_V1.to_string(),
+            ])
+        );
     }
 }
