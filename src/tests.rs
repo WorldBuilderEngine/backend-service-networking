@@ -4,9 +4,10 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-    API_DISCOVERY_CATALOG_V1, API_DISCOVERY_DETAIL_V1, API_DISCOVERY_HOME_FEED_V1, API_DISCOVERY_PLAY_SESSION_GET_V1, API_DISCOVERY_PUBLISH_CREATE_V1,
-    API_DISCOVERY_SCHEMA_V1, ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON, ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH, MVP_ANON_2D_GATEWAY_API_CONTRACTS,
-    MeshRegistryError, ServiceMeshRegistry, ServiceMeshRegistryDocument, ServiceRegistration,
+    API_AUTH_GUEST_UPGRADE_V1, API_AUTH_LOGIN_V1, API_AUTH_REFRESH_V1, API_AUTH_REGISTER_V1, API_DISCOVERY_CATALOG_V1, API_DISCOVERY_DETAIL_V1,
+    API_DISCOVERY_HOME_FEED_V1, API_DISCOVERY_PLAY_SESSION_GET_V1, API_DISCOVERY_PUBLISH_CREATE_V1, API_DISCOVERY_SCHEMA_V1,
+    ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON, ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH, MVP_ANON_2D_GATEWAY_API_CONTRACTS, MeshRegistryError,
+    ServiceMeshRegistry, ServiceMeshRegistryDocument, ServiceRegistration,
 };
 
 fn environment_lock() -> &'static Mutex<()> {
@@ -190,6 +191,10 @@ fn returns_missing_required_contracts_when_registry_is_incomplete() {
     assert_eq!(
         error,
         MeshRegistryError::MissingRequiredApiContracts(vec![
+            API_AUTH_GUEST_UPGRADE_V1.to_string(),
+            API_AUTH_LOGIN_V1.to_string(),
+            API_AUTH_REFRESH_V1.to_string(),
+            API_AUTH_REGISTER_V1.to_string(),
             API_DISCOVERY_DETAIL_V1.to_string(),
             API_DISCOVERY_HOME_FEED_V1.to_string(),
             API_DISCOVERY_PLAY_SESSION_GET_V1.to_string(),

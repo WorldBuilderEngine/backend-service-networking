@@ -18,6 +18,16 @@
         "worldbuilder.discovery.play-session.get.v1",
         "worldbuilder.discovery.publish.create.v1"
       ]
+    },
+    {
+      "service_name": "backend-auth",
+      "base_url": "http://backend-auth.infrastructure.svc.cluster.local:8791",
+      "api_contracts": [
+        "worldbuilder.auth.register.v1",
+        "worldbuilder.auth.login.v1",
+        "worldbuilder.auth.refresh.v1",
+        "worldbuilder.auth.guest-upgrade.v1"
+      ]
     }
   ]
 }
