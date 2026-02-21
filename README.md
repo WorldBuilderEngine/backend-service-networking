@@ -19,7 +19,8 @@ Library mesh registration contract for backend service API discovery.
         "worldbuilder.discovery.catalog.v1",
         "worldbuilder.discovery.detail.v1",
         "worldbuilder.discovery.schema.v1",
-        "worldbuilder.discovery.play-session.get.v1"
+        "worldbuilder.discovery.play-session.get.v1",
+        "worldbuilder.discovery.publish.create.v1"
       ]
     }
   ]

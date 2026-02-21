@@ -5,9 +5,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     API_DISCOVERY_CATALOG_V1, API_DISCOVERY_DETAIL_V1, API_DISCOVERY_PLAY_SESSION_GET_V1,
+    API_DISCOVERY_PUBLISH_CREATE_V1,
     API_DISCOVERY_SCHEMA_V1, ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON,
-    ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH, MVP_ANON_2D_API_CONTRACTS, MeshRegistryError,
-    ServiceMeshRegistry, ServiceMeshRegistryDocument, ServiceRegistration,
+    ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH, MVP_ANON_2D_GATEWAY_API_CONTRACTS,
+    MVP_ANON_2D_READ_API_CONTRACTS, MeshRegistryError, ServiceMeshRegistry,
+    ServiceMeshRegistryDocument, ServiceRegistration,
 };
 
 fn environment_lock() -> &'static Mutex<()> {
@@ -34,7 +36,7 @@ fn resolves_contract_to_registered_service() {
         "2026-02-21",
         "backend-data-center",
         "http://127.0.0.1:8787",
-        MVP_ANON_2D_API_CONTRACTS,
+        MVP_ANON_2D_GATEWAY_API_CONTRACTS,
     )
     .unwrap();
 
@@ -211,12 +213,12 @@ fn validates_required_contracts_for_mvp() {
         "2026-02-21",
         "backend-data-center",
         "http://127.0.0.1:8787",
-        MVP_ANON_2D_API_CONTRACTS,
+        MVP_ANON_2D_GATEWAY_API_CONTRACTS,
     )
     .unwrap();
 
     registry
-        .ensure_contracts_registered(MVP_ANON_2D_API_CONTRACTS)
+        .ensure_contracts_registered(MVP_ANON_2D_GATEWAY_API_CONTRACTS)
         .unwrap();
 }
 
@@ -231,14 +233,21 @@ fn returns_missing_required_contracts_when_registry_is_incomplete() {
     .unwrap();
 
     let error = registry
-        .ensure_contracts_registered(MVP_ANON_2D_API_CONTRACTS)
+        .ensure_contracts_registered(MVP_ANON_2D_GATEWAY_API_CONTRACTS)
         .unwrap_err();
     assert_eq!(
         error,
         MeshRegistryError::MissingRequiredApiContracts(vec![
             API_DISCOVERY_DETAIL_V1.to_string(),
             API_DISCOVERY_PLAY_SESSION_GET_V1.to_string(),
+            API_DISCOVERY_PUBLISH_CREATE_V1.to_string(),
             API_DISCOVERY_SCHEMA_V1.to_string(),
         ])
     );
+}
+
+#[test]
+fn mvp_read_contracts_exclude_publish_contract() {
+    assert!(!MVP_ANON_2D_READ_API_CONTRACTS.contains(&API_DISCOVERY_PUBLISH_CREATE_V1));
+    assert_eq!(MVP_ANON_2D_READ_API_CONTRACTS.len(), 4);
 }
