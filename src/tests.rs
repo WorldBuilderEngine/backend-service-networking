@@ -4,8 +4,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-    API_DISCOVERY_CATALOG_V1, API_DISCOVERY_DETAIL_V1, API_DISCOVERY_HOME_V1,
-    API_DISCOVERY_PLAY_SESSION_CREATE_V1, API_DISCOVERY_PLAY_SESSION_GET_V1,
+    API_DISCOVERY_CATALOG_V1, API_DISCOVERY_DETAIL_V1, API_DISCOVERY_PLAY_SESSION_GET_V1,
     API_DISCOVERY_SCHEMA_V1, ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON,
     ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH, MVP_ANON_2D_API_CONTRACTS, MeshRegistryError,
     ServiceMeshRegistry, ServiceMeshRegistryDocument, ServiceRegistration,
@@ -56,12 +55,12 @@ fn rejects_duplicate_api_contract_across_services() {
             ServiceRegistration {
                 service_name: "backend-data-center-a".to_string(),
                 base_url: "http://127.0.0.1:8787".to_string(),
-                api_contracts: vec![API_DISCOVERY_HOME_V1.to_string()],
+                api_contracts: vec![API_DISCOVERY_DETAIL_V1.to_string()],
             },
             ServiceRegistration {
                 service_name: "backend-data-center-b".to_string(),
                 base_url: "http://127.0.0.1:8789".to_string(),
-                api_contracts: vec![API_DISCOVERY_HOME_V1.to_string()],
+                api_contracts: vec![API_DISCOVERY_DETAIL_V1.to_string()],
             },
         ],
     };
@@ -70,7 +69,7 @@ fn rejects_duplicate_api_contract_across_services() {
     assert_eq!(
         error,
         MeshRegistryError::InvalidDocument(
-            "api contract 'worldbuilder.discovery.home.v1' is registered by multiple services"
+            "api contract 'worldbuilder.discovery.detail.v1' is registered by multiple services"
                 .to_string()
         )
     );
@@ -86,7 +85,7 @@ fn resolves_from_json_document() {
                 "base_url": "http://127.0.0.1:8787",
                 "api_contracts": [
                     "worldbuilder.discovery.catalog.v1",
-                    "worldbuilder.discovery.home.v1"
+                    "worldbuilder.discovery.detail.v1"
                 ]
             }
         ]
@@ -167,7 +166,7 @@ fn loads_registry_from_environment_path_when_json_is_not_set() {
             {
                 "service_name": "backend-data-center",
                 "base_url": "http://127.0.0.1:8787",
-                "api_contracts": ["worldbuilder.discovery.home.v1"]
+                "api_contracts": ["worldbuilder.discovery.detail.v1"]
             }
         ]
     }"#;
@@ -181,7 +180,7 @@ fn loads_registry_from_environment_path_when_json_is_not_set() {
         .unwrap()
         .expect("expected registry");
     let resolved_target = registry
-        .resolve_api_contract(API_DISCOVERY_HOME_V1)
+        .resolve_api_contract(API_DISCOVERY_DETAIL_V1)
         .unwrap();
     assert_eq!(resolved_target.service_name, "backend-data-center");
 
@@ -238,8 +237,6 @@ fn returns_missing_required_contracts_when_registry_is_incomplete() {
         error,
         MeshRegistryError::MissingRequiredApiContracts(vec![
             API_DISCOVERY_DETAIL_V1.to_string(),
-            API_DISCOVERY_HOME_V1.to_string(),
-            API_DISCOVERY_PLAY_SESSION_CREATE_V1.to_string(),
             API_DISCOVERY_PLAY_SESSION_GET_V1.to_string(),
             API_DISCOVERY_SCHEMA_V1.to_string(),
         ])

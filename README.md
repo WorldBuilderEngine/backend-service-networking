@@ -17,11 +17,9 @@ Library mesh registration contract for backend service API discovery.
       "base_url": "http://backend-data-center.infrastructure.svc.cluster.local:8787",
       "api_contracts": [
         "worldbuilder.discovery.catalog.v1",
-        "worldbuilder.discovery.home.v1",
         "worldbuilder.discovery.detail.v1",
         "worldbuilder.discovery.schema.v1",
-        "worldbuilder.discovery.play-session.get.v1",
-        "worldbuilder.discovery.play-session.create.v1"
+        "worldbuilder.discovery.play-session.get.v1"
       ]
     }
   ]
