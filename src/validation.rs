@@ -3,20 +3,14 @@ use std::collections::HashSet;
 use url::Url;
 
 use crate::error::MeshRegistryError;
-use crate::models::ServiceMeshRegistryDocument;
+use crate::models::{PublishIngressPolicy, ServiceMeshRegistryDocument};
 
-pub(crate) fn validate_registry_document(
-    document: &ServiceMeshRegistryDocument,
-) -> Result<(), MeshRegistryError> {
+pub(crate) fn validate_registry_document(document: &ServiceMeshRegistryDocument) -> Result<(), MeshRegistryError> {
     if document.version.trim().is_empty() {
-        return Err(MeshRegistryError::InvalidDocument(
-            "version must not be empty".to_string(),
-        ));
+        return Err(MeshRegistryError::InvalidDocument("version must not be empty".to_string()));
     }
     if document.services.is_empty() {
-        return Err(MeshRegistryError::InvalidDocument(
-            "at least one service registration is required".to_string(),
-        ));
+        return Err(MeshRegistryError::InvalidDocument("at least one service registration is required".to_string()));
     }
 
     let mut service_names = HashSet::<String>::new();
@@ -25,15 +19,10 @@ pub(crate) fn validate_registry_document(
     for service in &document.services {
         let service_name = service.service_name.trim();
         if service_name.is_empty() {
-            return Err(MeshRegistryError::InvalidDocument(
-                "service_name must not be empty".to_string(),
-            ));
+            return Err(MeshRegistryError::InvalidDocument("service_name must not be empty".to_string()));
         }
         if !service_names.insert(service_name.to_string()) {
-            return Err(MeshRegistryError::InvalidDocument(format!(
-                "service_name '{}' is duplicated",
-                service_name
-            )));
+            return Err(MeshRegistryError::InvalidDocument(format!("service_name '{}' is duplicated", service_name)));
         }
 
         let parsed_base_url = Url::parse(service.base_url.trim()).map_err(|parse_error| {
@@ -69,6 +58,100 @@ pub(crate) fn validate_registry_document(
                     normalized_api_contract
                 )));
             }
+        }
+    }
+
+    if let Some(publish_ingress_policy) = &document.publish_ingress_policy {
+        validate_publish_ingress_policy(publish_ingress_policy)?;
+    }
+
+    Ok(())
+}
+
+fn validate_publish_ingress_policy(publish_ingress_policy: &PublishIngressPolicy) -> Result<(), MeshRegistryError> {
+    if publish_ingress_policy.policy_owner_product.trim().is_empty() {
+        return Err(MeshRegistryError::InvalidDocument(
+            "publish_ingress_policy.policy_owner_product must not be empty".to_string(),
+        ));
+    }
+    if publish_ingress_policy.publish_api_contract.trim().is_empty() {
+        return Err(MeshRegistryError::InvalidDocument(
+            "publish_ingress_policy.publish_api_contract must not be empty".to_string(),
+        ));
+    }
+    if publish_ingress_policy.default_max_body_bytes == 0 {
+        return Err(MeshRegistryError::InvalidDocument(
+            "publish_ingress_policy.default_max_body_bytes must be greater than zero".to_string(),
+        ));
+    }
+    if publish_ingress_policy.required_hops.is_empty() {
+        return Err(MeshRegistryError::InvalidDocument(
+            "publish_ingress_policy.required_hops must include at least one hop".to_string(),
+        ));
+    }
+    if publish_ingress_policy
+        .observability
+        .rejection_metric_name
+        .trim()
+        .is_empty()
+    {
+        return Err(MeshRegistryError::InvalidDocument(
+            "publish_ingress_policy.observability.rejection_metric_name must not be empty".to_string(),
+        ));
+    }
+    if publish_ingress_policy
+        .observability
+        .rejection_log_fields
+        .is_empty()
+    {
+        return Err(MeshRegistryError::InvalidDocument(
+            "publish_ingress_policy.observability.rejection_log_fields must include at least one field".to_string(),
+        ));
+    }
+
+    let mut hop_names = HashSet::<String>::new();
+    let mut hop_env_var_names = HashSet::<String>::new();
+    for required_hop in &publish_ingress_policy.required_hops {
+        let hop_name = required_hop.hop_name.trim();
+        if hop_name.is_empty() {
+            return Err(MeshRegistryError::InvalidDocument(
+                "publish_ingress_policy.required_hops[].hop_name must not be empty".to_string(),
+            ));
+        }
+        if !hop_names.insert(hop_name.to_string()) {
+            return Err(MeshRegistryError::InvalidDocument(format!(
+                "publish_ingress_policy.required_hops contains duplicate hop '{}'",
+                hop_name
+            )));
+        }
+
+        if required_hop.product.trim().is_empty() {
+            return Err(MeshRegistryError::InvalidDocument(format!(
+                "publish_ingress_policy.required_hops['{}'].product must not be empty",
+                hop_name
+            )));
+        }
+
+        let max_body_bytes_env_var = required_hop.max_body_bytes_env_var.trim();
+        if max_body_bytes_env_var.is_empty() {
+            return Err(MeshRegistryError::InvalidDocument(format!(
+                "publish_ingress_policy.required_hops['{}'].max_body_bytes_env_var must not be empty",
+                hop_name
+            )));
+        }
+        if !hop_env_var_names.insert(max_body_bytes_env_var.to_string()) {
+            return Err(MeshRegistryError::InvalidDocument(format!(
+                "publish_ingress_policy.required_hops uses duplicate max_body_bytes_env_var '{}'",
+                max_body_bytes_env_var
+            )));
+        }
+    }
+
+    for rejection_log_field in &publish_ingress_policy.observability.rejection_log_fields {
+        if rejection_log_field.trim().is_empty() {
+            return Err(MeshRegistryError::InvalidDocument(
+                "publish_ingress_policy.observability.rejection_log_fields contains an empty field".to_string(),
+            ));
         }
     }
 

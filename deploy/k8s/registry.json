@@ -1,5 +1,5 @@
 {
-  "version": "2026-02-21",
+  "version": "2026-03-01",
   "services": [
     {
       "service_name": "backend-discovery-home",
@@ -48,5 +48,38 @@
         "worldbuilder.identity.policy-evaluation.v1"
       ]
     }
-  ]
+  ],
+  "publish_ingress_policy": {
+    "policy_owner_product": "backend-service-networking",
+    "publish_api_contract": "worldbuilder.discovery.publish.create.v1",
+    "default_max_body_bytes": 67108864,
+    "required_hops": [
+      {
+        "hop_name": "backend-edge",
+        "product": "backend-edge",
+        "max_body_bytes_env_var": "WORLD_BUILDER_EDGE_MAX_JSON_BODY_BYTES"
+      },
+      {
+        "hop_name": "backend-gateway",
+        "product": "backend-gateway",
+        "max_body_bytes_env_var": "WORLD_BUILDER_APOLLO_MAX_JSON_BODY_BYTES"
+      },
+      {
+        "hop_name": "backend-data-center",
+        "product": "backend-data-center",
+        "max_body_bytes_env_var": "WORLD_BUILDER_DATA_CENTER_MAX_JSON_BODY_BYTES"
+      }
+    ],
+    "observability": {
+      "rejection_metric_name": "worldbuilder_publish_ingress_payload_rejected_total",
+      "rejection_log_fields": [
+        "publishIngressHop",
+        "configuredMaxBodyBytes",
+        "requiredPolicyBytes",
+        "requestContentLength",
+        "requestId",
+        "apiContract"
+      ]
+    }
+  }
 }

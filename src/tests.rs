@@ -7,7 +7,7 @@ use crate::{
     API_AUTH_GUEST_UPGRADE_V1, API_AUTH_LOGIN_V1, API_AUTH_REFRESH_V1, API_AUTH_REGISTER_V1, API_DISCOVERY_CATALOG_V1, API_DISCOVERY_DETAIL_V1,
     API_DISCOVERY_HOME_FEED_V1, API_DISCOVERY_PLAY_SESSION_GET_V1, API_DISCOVERY_PUBLISH_CREATE_V1, API_DISCOVERY_SCHEMA_V1,
     ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON, ENV_WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH, MVP_ANON_2D_GATEWAY_API_CONTRACTS, MeshRegistryError,
-    ServiceMeshRegistry, ServiceMeshRegistryDocument, ServiceRegistration,
+    PublishIngressHopRuntimeLimit, ServiceMeshRegistry, ServiceMeshRegistryDocument, ServiceRegistration,
 };
 
 fn environment_lock() -> &'static Mutex<()> {
@@ -59,6 +59,7 @@ fn rejects_duplicate_api_contract_across_services() {
                 api_contracts: vec![API_DISCOVERY_DETAIL_V1.to_string()],
             },
         ],
+        publish_ingress_policy: None,
     };
 
     let error = ServiceMeshRegistry::from_document(registry_document).unwrap_err();
@@ -201,5 +202,156 @@ fn returns_missing_required_contracts_when_registry_is_incomplete() {
             API_DISCOVERY_PUBLISH_CREATE_V1.to_string(),
             API_DISCOVERY_SCHEMA_V1.to_string(),
         ])
+    );
+}
+
+#[test]
+fn validates_publish_ingress_policy_all_hops() {
+    let registry_json = r#"{
+        "version": "2026-03-01",
+        "services": [
+            {
+                "service_name": "backend-data-center",
+                "base_url": "http://127.0.0.1:8787",
+                "api_contracts": ["worldbuilder.discovery.publish.create.v1"]
+            }
+        ],
+        "publish_ingress_policy": {
+            "policy_owner_product": "backend-service-networking",
+            "publish_api_contract": "worldbuilder.discovery.publish.create.v1",
+            "default_max_body_bytes": 67108864,
+            "required_hops": [
+                {
+                    "hop_name": "backend-edge",
+                    "product": "backend-edge",
+                    "max_body_bytes_env_var": "WORLD_BUILDER_EDGE_MAX_JSON_BODY_BYTES"
+                },
+                {
+                    "hop_name": "backend-gateway",
+                    "product": "backend-gateway",
+                    "max_body_bytes_env_var": "WORLD_BUILDER_APOLLO_MAX_JSON_BODY_BYTES"
+                },
+                {
+                    "hop_name": "backend-data-center",
+                    "product": "backend-data-center",
+                    "max_body_bytes_env_var": "WORLD_BUILDER_DATA_CENTER_MAX_JSON_BODY_BYTES"
+                }
+            ],
+            "observability": {
+                "rejection_metric_name": "worldbuilder_publish_ingress_payload_rejected_total",
+                "rejection_log_fields": [
+                    "publishIngressHop",
+                    "configuredMaxBodyBytes",
+                    "requiredPolicyBytes",
+                    "requestContentLength"
+                ]
+            }
+        }
+    }"#;
+
+    let registry = ServiceMeshRegistry::from_json_str(registry_json).unwrap();
+    registry
+        .ensure_publish_ingress_all_hops_conform([
+            PublishIngressHopRuntimeLimit {
+                hop_name: "backend-edge".to_string(),
+                configured_max_body_bytes: 67_108_864,
+            },
+            PublishIngressHopRuntimeLimit {
+                hop_name: "backend-gateway".to_string(),
+                configured_max_body_bytes: 67_108_864,
+            },
+            PublishIngressHopRuntimeLimit {
+                hop_name: "backend-data-center".to_string(),
+                configured_max_body_bytes: 67_108_864,
+            },
+        ])
+        .unwrap();
+}
+
+#[test]
+fn rejects_publish_ingress_hop_below_policy_bytes() {
+    let registry_json = r#"{
+        "version": "2026-03-01",
+        "services": [
+            {
+                "service_name": "backend-data-center",
+                "base_url": "http://127.0.0.1:8787",
+                "api_contracts": ["worldbuilder.discovery.publish.create.v1"]
+            }
+        ],
+        "publish_ingress_policy": {
+            "policy_owner_product": "backend-service-networking",
+            "publish_api_contract": "worldbuilder.discovery.publish.create.v1",
+            "default_max_body_bytes": 67108864,
+            "required_hops": [
+                {
+                    "hop_name": "backend-edge",
+                    "product": "backend-edge",
+                    "max_body_bytes_env_var": "WORLD_BUILDER_EDGE_MAX_JSON_BODY_BYTES"
+                }
+            ],
+            "observability": {
+                "rejection_metric_name": "worldbuilder_publish_ingress_payload_rejected_total",
+                "rejection_log_fields": ["publishIngressHop"]
+            }
+        }
+    }"#;
+    let registry = ServiceMeshRegistry::from_json_str(registry_json).unwrap();
+
+    let error = registry
+        .ensure_publish_ingress_hop_limit("backend-edge", 8 * 1024 * 1024)
+        .unwrap_err();
+    assert_eq!(
+        error,
+        MeshRegistryError::PublishIngressHopLimitTooLow {
+            hop_name: "backend-edge".to_string(),
+            configured_max_body_bytes: 8 * 1024 * 1024,
+            required_min_body_bytes: 67_108_864,
+        }
+    );
+}
+
+#[test]
+fn validates_publish_ingress_hop_limit_from_environment() {
+    let _lock = environment_lock().lock().unwrap();
+    clear_registry_environment();
+    let registry_json = r#"{
+        "version": "2026-03-01",
+        "services": [
+            {
+                "service_name": "backend-data-center",
+                "base_url": "http://127.0.0.1:8787",
+                "api_contracts": ["worldbuilder.discovery.publish.create.v1"]
+            }
+        ],
+        "publish_ingress_policy": {
+            "policy_owner_product": "backend-service-networking",
+            "publish_api_contract": "worldbuilder.discovery.publish.create.v1",
+            "default_max_body_bytes": 67108864,
+            "required_hops": [
+                {
+                    "hop_name": "backend-gateway",
+                    "product": "backend-gateway",
+                    "max_body_bytes_env_var": "WORLD_BUILDER_APOLLO_MAX_JSON_BODY_BYTES"
+                }
+            ],
+            "observability": {
+                "rejection_metric_name": "worldbuilder_publish_ingress_payload_rejected_total",
+                "rejection_log_fields": ["publishIngressHop"]
+            }
+        }
+    }"#;
+    let registry = ServiceMeshRegistry::from_json_str(registry_json).unwrap();
+    set_env_var("WORLD_BUILDER_APOLLO_MAX_JSON_BODY_BYTES", "67108864");
+
+    let runtime_limit = registry
+        .ensure_publish_ingress_hop_limit_from_environment("backend-gateway")
+        .unwrap();
+    assert_eq!(
+        runtime_limit,
+        PublishIngressHopRuntimeLimit {
+            hop_name: "backend-gateway".to_string(),
+            configured_max_body_bytes: 67_108_864,
+        }
     );
 }

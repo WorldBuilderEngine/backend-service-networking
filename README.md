@@ -10,7 +10,7 @@ Library mesh registration contract for backend service API discovery.
 ## Registry Document
 ```json
 {
-  "version": "2026-02-21",
+  "version": "2026-03-01",
   "services": [
     {
       "service_name": "backend-discovery-home",
@@ -59,7 +59,40 @@ Library mesh registration contract for backend service API discovery.
         "worldbuilder.identity.policy-evaluation.v1"
       ]
     }
-  ]
+  ],
+  "publish_ingress_policy": {
+    "policy_owner_product": "backend-service-networking",
+    "publish_api_contract": "worldbuilder.discovery.publish.create.v1",
+    "default_max_body_bytes": 67108864,
+    "required_hops": [
+      {
+        "hop_name": "backend-edge",
+        "product": "backend-edge",
+        "max_body_bytes_env_var": "WORLD_BUILDER_EDGE_MAX_JSON_BODY_BYTES"
+      },
+      {
+        "hop_name": "backend-gateway",
+        "product": "backend-gateway",
+        "max_body_bytes_env_var": "WORLD_BUILDER_APOLLO_MAX_JSON_BODY_BYTES"
+      },
+      {
+        "hop_name": "backend-data-center",
+        "product": "backend-data-center",
+        "max_body_bytes_env_var": "WORLD_BUILDER_DATA_CENTER_MAX_JSON_BODY_BYTES"
+      }
+    ],
+    "observability": {
+      "rejection_metric_name": "worldbuilder_publish_ingress_payload_rejected_total",
+      "rejection_log_fields": [
+        "publishIngressHop",
+        "configuredMaxBodyBytes",
+        "requiredPolicyBytes",
+        "requestContentLength",
+        "requestId",
+        "apiContract"
+      ]
+    }
+  }
 }
 ```
 
@@ -72,6 +105,30 @@ Library mesh registration contract for backend service API discovery.
   - `ServiceMeshRegistry::from_environment()` checks `WORLD_BUILDER_SERVICE_MESH_REGISTRY_JSON` first, then `WORLD_BUILDER_SERVICE_MESH_REGISTRY_PATH`.
   - `ServiceMeshRegistry::from_environment_or_single_service(...)` loads from env when configured, else builds the provided fallback single-service registry.
   - `ServiceMeshRegistry::ensure_contracts_registered(...)` verifies required contracts are present before serving traffic.
+  - `ServiceMeshRegistry::ensure_publish_ingress_hop_limit_from_environment(hop_name)` verifies each hop's configured env max-body-bytes is not below the shared policy.
+  - `ServiceMeshRegistry::ensure_publish_ingress_all_hops_conform(...)` verifies all edge/gateway/data-center limits conform in CI/deploy checks.
+
+## Publish Ingress Policy Contract
+- Owner: `backend-service-networking`.
+- Contract key: `publish_ingress_policy`.
+- Canonical default: `67108864` bytes (`64 MiB`) across all publish ingress hops.
+- Required rollout invariant: no hop can run lower than `default_max_body_bytes`.
+- Required hops:
+  - `backend-edge` via `WORLD_BUILDER_EDGE_MAX_JSON_BODY_BYTES`
+  - `backend-gateway` via `WORLD_BUILDER_APOLLO_MAX_JSON_BODY_BYTES`
+  - `backend-data-center` via `WORLD_BUILDER_DATA_CENTER_MAX_JSON_BODY_BYTES`
+
+If a hop is below policy, this crate raises a startup/validation error so drift is blocked before publish traffic is served.
+
+## Observability Contract
+- Counter metric: `worldbuilder_publish_ingress_payload_rejected_total`
+- Required dimensions/log fields:
+  - `publishIngressHop`
+  - `configuredMaxBodyBytes`
+  - `requiredPolicyBytes`
+  - `requestContentLength`
+  - `requestId`
+  - `apiContract`
 
 ## GCP K8s Wiring
 - Store registry JSON in a ConfigMap and mount as file.
