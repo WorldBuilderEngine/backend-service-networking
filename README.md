@@ -63,7 +63,7 @@ Library mesh registration contract for backend service API discovery.
   "publish_ingress_policy": {
     "policy_owner_product": "backend-service-networking",
     "publish_api_contract": "worldbuilder.discovery.publish.create.v1",
-    "default_max_body_bytes": 67108864,
+    "default_max_body_bytes": 134217728,
     "required_hops": [
       {
         "hop_name": "backend-edge",
@@ -111,7 +111,7 @@ Library mesh registration contract for backend service API discovery.
 ## Publish Ingress Policy Contract
 - Owner: `backend-service-networking`.
 - Contract key: `publish_ingress_policy`.
-- Canonical default: `67108864` bytes (`64 MiB`) across all publish ingress hops.
+- Canonical default: `134217728` bytes (`128 MiB`) across all publish ingress hops.
 - Required rollout invariant: no hop can run lower than `default_max_body_bytes`.
 - Required hops:
   - `backend-edge` via `WORLD_BUILDER_EDGE_MAX_JSON_BODY_BYTES`

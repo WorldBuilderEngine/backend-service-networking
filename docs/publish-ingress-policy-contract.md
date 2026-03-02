@@ -11,7 +11,7 @@ Owner product: `backend-service-networking`
 ## Shared Contract
 - Registry key: `publish_ingress_policy`
 - Publish API contract: `worldbuilder.discovery.publish.create.v1`
-- Canonical minimum limit: `67108864` bytes (`64 MiB`)
+- Canonical minimum limit: `134217728` bytes (`128 MiB`)
 - Required rollout invariant: no hop may be configured below this minimum
 
 Required hop mappings:

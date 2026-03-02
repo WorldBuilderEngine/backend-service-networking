@@ -222,7 +222,7 @@ fn validates_publish_ingress_policy_all_hops() {
         "publish_ingress_policy": {
             "policy_owner_product": "backend-service-networking",
             "publish_api_contract": "worldbuilder.discovery.publish.create.v1",
-            "default_max_body_bytes": 67108864,
+            "default_max_body_bytes": 134217728,
             "required_hops": [
                 {
                     "hop_name": "backend-edge",
@@ -257,15 +257,15 @@ fn validates_publish_ingress_policy_all_hops() {
         .ensure_publish_ingress_all_hops_conform([
             PublishIngressHopRuntimeLimit {
                 hop_name: "backend-edge".to_string(),
-                configured_max_body_bytes: 67_108_864,
+                configured_max_body_bytes: 134_217_728,
             },
             PublishIngressHopRuntimeLimit {
                 hop_name: "backend-gateway".to_string(),
-                configured_max_body_bytes: 67_108_864,
+                configured_max_body_bytes: 134_217_728,
             },
             PublishIngressHopRuntimeLimit {
                 hop_name: "backend-data-center".to_string(),
-                configured_max_body_bytes: 67_108_864,
+                configured_max_body_bytes: 134_217_728,
             },
         ])
         .unwrap();
@@ -285,7 +285,7 @@ fn rejects_publish_ingress_hop_below_policy_bytes() {
         "publish_ingress_policy": {
             "policy_owner_product": "backend-service-networking",
             "publish_api_contract": "worldbuilder.discovery.publish.create.v1",
-            "default_max_body_bytes": 67108864,
+            "default_max_body_bytes": 134217728,
             "required_hops": [
                 {
                     "hop_name": "backend-edge",
@@ -309,7 +309,7 @@ fn rejects_publish_ingress_hop_below_policy_bytes() {
         MeshRegistryError::PublishIngressHopLimitTooLow {
             hop_name: "backend-edge".to_string(),
             configured_max_body_bytes: 8 * 1024 * 1024,
-            required_min_body_bytes: 67_108_864,
+            required_min_body_bytes: 134_217_728,
         }
     );
 }
@@ -330,7 +330,7 @@ fn validates_publish_ingress_hop_limit_from_environment() {
         "publish_ingress_policy": {
             "policy_owner_product": "backend-service-networking",
             "publish_api_contract": "worldbuilder.discovery.publish.create.v1",
-            "default_max_body_bytes": 67108864,
+            "default_max_body_bytes": 134217728,
             "required_hops": [
                 {
                     "hop_name": "backend-gateway",
@@ -345,7 +345,7 @@ fn validates_publish_ingress_hop_limit_from_environment() {
         }
     }"#;
     let registry = ServiceMeshRegistry::from_json_str(registry_json).unwrap();
-    set_env_var("WORLD_BUILDER_APOLLO_MAX_JSON_BODY_BYTES", "67108864");
+    set_env_var("WORLD_BUILDER_APOLLO_MAX_JSON_BODY_BYTES", "134217728");
 
     let runtime_limit = registry
         .ensure_publish_ingress_hop_limit_from_environment("backend-gateway")
@@ -354,7 +354,7 @@ fn validates_publish_ingress_hop_limit_from_environment() {
         runtime_limit,
         PublishIngressHopRuntimeLimit {
             hop_name: "backend-gateway".to_string(),
-            configured_max_body_bytes: 67_108_864,
+            configured_max_body_bytes: 134_217_728,
         }
     );
 }

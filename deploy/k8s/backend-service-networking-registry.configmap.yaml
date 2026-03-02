@@ -59,7 +59,7 @@ data:
       "publish_ingress_policy": {
         "policy_owner_product": "backend-service-networking",
         "publish_api_contract": "worldbuilder.discovery.publish.create.v1",
-        "default_max_body_bytes": 67108864,
+        "default_max_body_bytes": 134217728,
         "required_hops": [
           {
             "hop_name": "backend-edge",
