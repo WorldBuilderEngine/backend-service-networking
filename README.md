@@ -5,7 +5,7 @@ Library mesh registration contract for backend service API discovery.
 ## Purpose
 - Define a stable API contract registry document that maps API contracts to internal services.
 - Let `backend-gateway` resolve contracts through this library instead of hardcoding service routes.
-- Keep sidecar-free service mesh integration by using one shared Rust library contract.
+- Keep service-mesh integration without extra per-service proxies by using one shared Rust library contract.
 
 ## Registry Document
 ```json
